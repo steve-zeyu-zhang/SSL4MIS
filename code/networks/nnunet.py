@@ -423,7 +423,21 @@ class Generic_UNet(SegmentationNetwork):
 
         for u in range(len(self.tu)):
             x = self.tu[u](x)
-            x = torch.cat((x, skips[-(u + 1)]), dim=1)
+            # x = torch.cat((x, skips[-(u + 1)]), dim=1)
+            ####################################################################
+            # shape fix for nnunet
+            def truncate_tensor(tensor, target_shape):
+                if tensor.shape[:-len(target_shape)] != target_shape[:-len(target_shape)]:
+                    raise ValueError("Target shape does not match the dimensions of the input tensor.")
+
+                slices = [slice(None)] * len(tensor.shape)
+                for i in range(len(tensor.shape) - len(target_shape), len(tensor.shape)):
+                    slices[i] = slice(None, target_shape[i - len(tensor.shape) + len(target_shape)])
+
+                truncated_tensor = tensor[tuple(slices)]
+                return truncated_tensor
+            x = torch.cat((truncate_tensor(x, skips[-(u + 1)].shape), skips[-(u + 1)]), dim=1)
+            ####################################################################
             x = self.conv_blocks_localization[u](x)
             seg_outputs.append(self.final_nonlin(self.seg_outputs[u](x)))
 
